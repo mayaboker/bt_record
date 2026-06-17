@@ -1,0 +1,173 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>BT Record Text Control</title>
+  <style>
+    :root {
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      color-scheme: light dark;
+    }
+
+    body {
+      margin: 0;
+      padding: 24px;
+      background: #101418;
+      color: #edf2f7;
+    }
+
+    main {
+      max-width: 720px;
+      margin: 0 auto;
+    }
+
+    h1 {
+      margin: 0 0 20px;
+      font-size: 28px;
+    }
+
+    section {
+      margin-bottom: 16px;
+      padding: 16px;
+      border: 1px solid #2d3748;
+      border-radius: 8px;
+      background: #151b22;
+    }
+
+    label {
+      display: block;
+      margin-bottom: 8px;
+      color: #cbd5e0;
+      font-size: 14px;
+    }
+
+    input {
+      box-sizing: border-box;
+      width: 100%;
+      padding: 10px 12px;
+      border: 1px solid #4a5568;
+      border-radius: 6px;
+      background: #0f141a;
+      color: #edf2f7;
+      font-size: 15px;
+    }
+
+    button {
+      margin-top: 12px;
+      padding: 9px 14px;
+      border: 1px solid #3182ce;
+      border-radius: 6px;
+      background: #2b6cb0;
+      color: #edf2f7;
+      cursor: pointer;
+      font-size: 14px;
+    }
+
+    button:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+
+    dl {
+      display: grid;
+      grid-template-columns: 120px 1fr;
+      gap: 8px 12px;
+      margin: 0;
+    }
+
+    dt {
+      color: #a0aec0;
+    }
+
+    dd {
+      margin: 0;
+      word-break: break-word;
+    }
+
+    #message {
+      min-height: 22px;
+      color: #90cdf4;
+    }
+
+    #message.error {
+      color: #feb2b2;
+    }
+  </style>
+</head>
+<body>
+  <main>
+    <h1>BT Record Text Control</h1>
+
+    <section>
+      <label for="text">Overlay Text</label>
+      <input id="text" value="Initial text">
+      <button id="set-text">Set Text</button>
+    </section>
+
+    <section>
+      <dl>
+        <dt>Started</dt>
+        <dd id="started">unknown</dd>
+        <dt>Pipeline</dt>
+        <dd id="pipeline">unknown</dd>
+        <dt>Overlay</dt>
+        <dd id="overlay">unknown</dd>
+      </dl>
+    </section>
+
+    <section id="message"></section>
+  </main>
+
+  <script>
+    const textInput = document.getElementById("text");
+    const setButton = document.getElementById("set-text");
+    const startedEl = document.getElementById("started");
+    const pipelineEl = document.getElementById("pipeline");
+    const overlayEl = document.getElementById("overlay");
+    const messageEl = document.getElementById("message");
+
+    function setMessage(text, isError = false) {
+      messageEl.textContent = text || "";
+      messageEl.className = isError ? "error" : "";
+    }
+
+    async function requestJson(url, options = {}) {
+      const response = await fetch(url, options);
+      const body = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        throw new Error(body.detail || `HTTP ${response.status}`);
+      }
+      return body;
+    }
+
+    async function refreshStatus() {
+      const status = await requestJson("/status");
+      startedEl.textContent = status.started ? "yes" : "no";
+      pipelineEl.textContent = status.has_pipeline ? "ready" : "missing";
+      overlayEl.textContent = status.has_overlay ? "ready" : "missing";
+      setButton.disabled = !status.has_overlay;
+    }
+
+    setButton.addEventListener("click", async () => {
+      try {
+        const text = textInput.value;
+        const result = await requestJson("/text", {
+          method: "POST",
+          headers: {"content-type": "application/json"},
+          body: JSON.stringify({text}),
+        });
+        setMessage(`Overlay text set: ${result.text}`);
+        await refreshStatus();
+      } catch (err) {
+        setMessage(err.message, true);
+      }
+    });
+
+    refreshStatus().catch((err) => setMessage(err.message, true));
+    setInterval(() => {
+      refreshStatus().catch((err) => setMessage(err.message, true));
+    }, 2000);
+  </script>
+</body>
+</html>
