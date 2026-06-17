@@ -13,6 +13,11 @@ dependencies = [
 
 [project.scripts]
 bt-record = "bt_record.app:main"
+bt-gst-record = "bt_record.record_app:main"
 
 [tool.setuptools.package-data]
 bt_record = ["static/*.html"]
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["bt_record*"]

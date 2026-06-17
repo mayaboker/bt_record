@@ -1,0 +1,451 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>BT GStreamer Recorder</title>
+  <style>
+    :root {
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      color-scheme: light dark;
+    }
+
+    body {
+      margin: 0;
+      padding: 24px;
+      background: #101418;
+      color: #edf2f7;
+    }
+
+    main {
+      max-width: 760px;
+      margin: 0 auto;
+    }
+
+    h1 {
+      margin: 0 0 20px;
+      font-size: 28px;
+      letter-spacing: 0;
+    }
+
+    section {
+      margin-bottom: 16px;
+      padding: 16px;
+      border: 1px solid #2d3748;
+      border-radius: 8px;
+      background: #151b22;
+    }
+
+    .actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+    }
+
+    .section-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      margin-bottom: 12px;
+    }
+
+    h2 {
+      margin: 0;
+      font-size: 18px;
+      letter-spacing: 0;
+    }
+
+    label {
+      display: block;
+      margin-bottom: 8px;
+      color: #cbd5e0;
+      font-size: 14px;
+    }
+
+    input {
+      box-sizing: border-box;
+      width: 100%;
+      padding: 10px 12px;
+      border: 1px solid #4a5568;
+      border-radius: 6px;
+      background: #0f141a;
+      color: #edf2f7;
+      font-size: 15px;
+    }
+
+    button {
+      min-width: 132px;
+      padding: 9px 14px;
+      border: 1px solid #3182ce;
+      border-radius: 6px;
+      background: #2b6cb0;
+      color: #edf2f7;
+      cursor: pointer;
+      font-size: 14px;
+    }
+
+    button.secondary {
+      border-color: #4a5568;
+      background: #1f2933;
+    }
+
+    button.stop {
+      border-color: #c53030;
+      background: #9b2c2c;
+    }
+
+    button.danger {
+      border-color: #c53030;
+      background: #9b2c2c;
+    }
+
+    button:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+
+    dl {
+      display: grid;
+      grid-template-columns: 160px minmax(0, 1fr);
+      gap: 8px 12px;
+      margin: 0;
+    }
+
+    dt {
+      color: #a0aec0;
+    }
+
+    dd {
+      margin: 0;
+      word-break: break-word;
+    }
+
+    ul {
+      margin: 0;
+      padding: 0;
+      list-style: none;
+    }
+
+    li {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      gap: 8px 12px;
+      padding: 10px 0;
+      border-top: 1px solid #2d3748;
+    }
+
+    li:first-child {
+      border-top: 0;
+    }
+
+    a {
+      color: #90cdf4;
+      text-decoration: none;
+    }
+
+    a:hover {
+      text-decoration: underline;
+    }
+
+    .file-name {
+      font-weight: 600;
+      word-break: break-word;
+    }
+
+    .file-meta {
+      margin-top: 4px;
+      color: #a0aec0;
+      font-size: 13px;
+    }
+
+    .empty {
+      color: #a0aec0;
+    }
+
+    #message {
+      min-height: 22px;
+      color: #90cdf4;
+    }
+
+    #message.error {
+      color: #feb2b2;
+    }
+
+    @media (max-width: 520px) {
+      body {
+        padding: 16px;
+      }
+
+      dl {
+        grid-template-columns: 1fr;
+      }
+
+      button {
+        width: 100%;
+      }
+
+      li {
+        grid-template-columns: 1fr;
+      }
+    }
+  </style>
+</head>
+<body>
+  <main>
+    <h1>BT GStreamer Recorder</h1>
+
+    <section>
+      <label for="record-name">Recording name</label>
+      <input id="record-name" placeholder="recording name">
+    </section>
+
+    <section class="actions">
+      <button id="start">Start Recording</button>
+      <button id="stop" class="stop">Stop Recording</button>
+      <button id="refresh" class="secondary">Refresh Status</button>
+    </section>
+
+    <section>
+      <dl>
+        <dt>Camera</dt>
+        <dd id="started">unknown</dd>
+        <dt>Recording</dt>
+        <dd id="recording">unknown</dd>
+        <dt>Stopping</dt>
+        <dd id="stopping">unknown</dd>
+        <dt>Format</dt>
+        <dd id="format">unknown</dd>
+        <dt>Active file</dt>
+        <dd id="filename">none</dd>
+        <dt>Last finalized</dt>
+        <dd id="last-finalized">none</dd>
+        <dt>Camera mode</dt>
+        <dd id="mode">unknown</dd>
+        <dt>Error</dt>
+        <dd id="error">none</dd>
+      </dl>
+    </section>
+
+    <section>
+      <div class="section-header">
+        <h2>Recordings</h2>
+        <div class="actions">
+          <button id="refresh-files" class="secondary">Refresh Files</button>
+          <button id="delete-files" class="danger">Delete All</button>
+        </div>
+      </div>
+      <ul id="files"></ul>
+    </section>
+
+    <section id="message"></section>
+  </main>
+
+  <script>
+    const recordNameInput = document.getElementById("record-name");
+    const startButton = document.getElementById("start");
+    const stopButton = document.getElementById("stop");
+    const refreshButton = document.getElementById("refresh");
+    const refreshFilesButton = document.getElementById("refresh-files");
+    const deleteFilesButton = document.getElementById("delete-files");
+    const startedEl = document.getElementById("started");
+    const recordingEl = document.getElementById("recording");
+    const stoppingEl = document.getElementById("stopping");
+    const formatEl = document.getElementById("format");
+    const filenameEl = document.getElementById("filename");
+    const lastFinalizedEl = document.getElementById("last-finalized");
+    const modeEl = document.getElementById("mode");
+    const errorEl = document.getElementById("error");
+    const filesEl = document.getElementById("files");
+    const messageEl = document.getElementById("message");
+    let currentStatus = null;
+    let currentFiles = [];
+
+    function yesNo(value) {
+      return value ? "yes" : "no";
+    }
+
+    function displayValue(value, fallback = "none") {
+      return value || fallback;
+    }
+
+    function setMessage(text, isError = false) {
+      messageEl.textContent = text || "";
+      messageEl.className = isError ? "error" : "";
+    }
+
+    function formatSize(bytes) {
+      if (bytes < 1024) {
+        return `${bytes} B`;
+      }
+      const units = ["KB", "MB", "GB"];
+      let size = bytes / 1024;
+      let unitIndex = 0;
+      while (size >= 1024 && unitIndex < units.length - 1) {
+        size /= 1024;
+        unitIndex += 1;
+      }
+      return `${size.toFixed(size >= 10 ? 1 : 2)} ${units[unitIndex]}`;
+    }
+
+    function formatModified(seconds) {
+      return new Date(seconds * 1000).toLocaleString();
+    }
+
+    async function requestJson(url, options = {}) {
+      const response = await fetch(url, options);
+      const body = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        throw new Error(body.detail || `HTTP ${response.status}`);
+      }
+      return body;
+    }
+
+    function renderStatus(status) {
+      currentStatus = status;
+      startedEl.textContent = yesNo(status.started);
+      recordingEl.textContent = yesNo(status.recording);
+      stoppingEl.textContent = yesNo(status.stopping);
+      formatEl.textContent = displayValue(status.format, "unknown");
+      filenameEl.textContent = displayValue(status.filename);
+      lastFinalizedEl.textContent = displayValue(status.last_finalized_filename);
+      modeEl.textContent = `${status.width}x${status.height} @ ${status.fps} fps`;
+      errorEl.textContent = displayValue(status.error);
+
+      startButton.disabled = !status.started || status.recording || status.stopping;
+      stopButton.disabled = !status.recording || status.stopping;
+      updateDeleteButton();
+    }
+
+    function renderFiles(files) {
+      currentFiles = files;
+      filesEl.replaceChildren();
+      if (!files.length) {
+        const empty = document.createElement("li");
+        empty.className = "empty";
+        empty.textContent = "No recordings found";
+        filesEl.appendChild(empty);
+        return;
+      }
+
+      for (const file of files) {
+        const item = document.createElement("li");
+
+        const details = document.createElement("div");
+        const name = document.createElement("div");
+        name.className = "file-name";
+        name.textContent = file.name;
+        const meta = document.createElement("div");
+        meta.className = "file-meta";
+        meta.textContent = `${formatSize(file.size)} | ${formatModified(file.modified)}`;
+        details.append(name, meta);
+
+        const link = document.createElement("a");
+        link.href = file.download_url;
+        link.textContent = "Download";
+        link.download = file.name;
+
+        item.append(details, link);
+        filesEl.appendChild(item);
+      }
+      updateDeleteButton();
+    }
+
+    function updateDeleteButton() {
+      const busy = currentStatus && (currentStatus.recording || currentStatus.stopping);
+      deleteFilesButton.disabled = busy || currentFiles.length === 0;
+    }
+
+    async function refreshStatus() {
+      const status = await requestJson("/status");
+      renderStatus(status);
+      await refreshFiles();
+      return status;
+    }
+
+    async function refreshFiles() {
+      const result = await requestJson("/files");
+      renderFiles(result.files);
+      return result.files;
+    }
+
+    startButton.addEventListener("click", async () => {
+      try {
+        const name = recordNameInput.value;
+        const status = await requestJson("/start", {
+          method: "POST",
+          headers: {"content-type": "application/json"},
+          body: JSON.stringify({name}),
+        });
+        renderStatus(status);
+        setMessage(`Recording started: ${status.filename}`);
+      } catch (err) {
+        setMessage(err.message, true);
+        await refreshStatus().catch(() => {});
+      }
+    });
+
+    stopButton.addEventListener("click", async () => {
+      try {
+        const status = await requestJson("/stop", {method: "POST"});
+        renderStatus(status);
+        await refreshFiles();
+        setMessage("Recording stop requested");
+      } catch (err) {
+        setMessage(err.message, true);
+        await refreshStatus().catch(() => {});
+      }
+    });
+
+    refreshButton.addEventListener("click", async () => {
+      try {
+        await refreshStatus();
+        setMessage("Status refreshed");
+      } catch (err) {
+        setMessage(err.message, true);
+      }
+    });
+
+    refreshFilesButton.addEventListener("click", async () => {
+      try {
+        await refreshFiles();
+        setMessage("Files refreshed");
+      } catch (err) {
+        setMessage(err.message, true);
+      }
+    });
+
+    deleteFilesButton.addEventListener("click", async () => {
+      const fileCount = currentFiles.length;
+      if (!fileCount) {
+        return;
+      }
+      if (!window.confirm(`Delete ${fileCount} recording file(s)?`)) {
+        return;
+      }
+
+      try {
+        const result = await requestJson("/files", {
+          method: "DELETE",
+          headers: {"content-type": "application/json"},
+          body: JSON.stringify({confirm: true}),
+        });
+        renderFiles(result.files);
+        await refreshStatus();
+        setMessage(`Deleted ${result.deleted.length} recording files`);
+      } catch (err) {
+        setMessage(err.message, true);
+        await refreshStatus().catch(() => {});
+      }
+    });
+
+    refreshStatus().catch((err) => setMessage(err.message, true));
+    setInterval(() => {
+      refreshStatus().catch((err) => setMessage(err.message, true));
+    }, 2000);
+    setInterval(() => {
+      refreshFiles().catch((err) => setMessage(err.message, true));
+    }, 5000);
+  </script>
+</body>
+</html>
