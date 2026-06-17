@@ -16,6 +16,11 @@ Gst.init(None)
 
 PENDING = object()
 
+CMD_INIT = "init"
+CMD_SHUTDOWN = "shutdown"
+CMD_SET_TEXT = "set_text"
+CMD_STATUS = "status"
+
 
 @dataclass
 class Command:
@@ -41,11 +46,11 @@ class GstController:
 
     def start(self):
         self.thread.start()
-        return self.call_sync("init", timeout=5)
+        return self.call_sync(CMD_INIT, timeout=5)
 
     def stop(self):
         try:
-            self.call_sync("shutdown", timeout=5)
+            self.call_sync(CMD_SHUTDOWN, timeout=5)
         finally:
             self._invoke(lambda: self.loop.quit() or False)
             self.thread.join(timeout=2)
@@ -71,6 +76,9 @@ class GstController:
     # ---------- GStreamer thread ----------
 
     def _thread_main(self):
+        # Make this context thread-default while the loop runs so sources and
+        # async callbacks created on this thread attach to the GStreamer loop,
+        # not to another thread's default context.
         self.context.push_thread_default()
         try:
             self.loop.run()
@@ -99,19 +107,22 @@ class GstController:
         return False
 
     def _handle_command(self, cmd: Command):
+        """
+        Run on the GStreamer thread. Returns PENDING if the command is still in progress.
+        """
         name = cmd.name
         args = cmd.args
 
-        if name == "init":
+        if name == CMD_INIT:
             return self._init_pipeline()
 
-        if name == "shutdown":
+        if name == CMD_SHUTDOWN:
             return self._shutdown_pipeline()
 
-        if name == "set_text":
+        if name == CMD_SET_TEXT:
             return self._set_text(args["text"])
 
-        if name == "status":
+        if name == CMD_STATUS:
             return self._status()
 
         raise RuntimeError(f"Unknown command: {name}")

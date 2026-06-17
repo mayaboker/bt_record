@@ -6,7 +6,7 @@ from fastapi import FastAPI, HTTPException
 from fastapi.responses import FileResponse
 from pydantic import BaseModel
 
-from bt_record.gst_controller import GstController
+from bt_record.gst_controller import CMD_SET_TEXT, CMD_STATUS, GstController
 
 
 STATIC_DIR = Path(__file__).with_name("static")
@@ -55,13 +55,13 @@ async def index():
 
 @app.get("/status")
 async def status():
-    return await await_gst_command("status")
+    return await await_gst_command(CMD_STATUS)
 
 
 @app.post("/text")
 async def set_text(req: TextRequest):
     return await await_gst_command(
-        "set_text",
+        CMD_SET_TEXT,
         {"text": req.text},
     )
 
