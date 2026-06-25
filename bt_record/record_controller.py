@@ -340,6 +340,8 @@ class CameraRecorder:
                 ! filesink name=record-sink sync=false
         """
         else:
+            print("Recording raw I420 video")
+            print(filename)
             record_desc = f"""
             queue name=record-queue flush-on-eos=true
                 ! videoconvert name=record-convert
@@ -424,6 +426,8 @@ class RecordingController:
         target_folder="./output",
         stream_ip=DEFAULT_STREAM_IP,
     ):
+        validate_record_format(record_format)
+
         self.commands: queue.Queue[Command] = queue.Queue()
         self.context = GLib.MainContext()
         self.loop = GLib.MainLoop.new(self.context, False)
@@ -495,7 +499,7 @@ class RecordingController:
         if name == CMD_SHUTDOWN:
             return self._shutdown_pipeline()
         if name == CMD_START:
-            return self._start_recording(args.get("name"), args.get("format"))
+            return self._start_recording(args.get("name"))
         if name == CMD_STOP:
             return self._stop_recording()
         if name == CMD_STATUS:
@@ -556,19 +560,14 @@ class RecordingController:
             return {"ok": True, **status}
         return {"ok": True, "started": False, "recording": False, "stopping": False}
 
-    def _start_recording(self, name: str | None = None, record_format: str | None = None):
+    def _start_recording(self, name: str | None = None):
         recorder = self._require_recorder()
-        selected_format = validate_record_format(
-            record_format if record_format is not None else "mp4"
-        )
         if recorder.stopping:
             raise RuntimeError("Recording is still stopping")
         if recorder.recording:
             raise RuntimeError("Already recording")
         if not recorder.started:
             raise RuntimeError("Camera pipeline is not running")
-        self.record_format = selected_format
-        recorder.record_format = selected_format
         filename = str(self._recording_path_for_name(name))
         recorder.start_recording(filename)
         return {"ok": True, **recorder.status()}

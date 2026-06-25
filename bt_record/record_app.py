@@ -49,6 +49,7 @@ from bt_record.record_controller import (
     CMD_STOP,
     DEFAULT_STREAM_IP,
     RecordingController,
+    VALID_RECORD_FORMATS,
 )
 
 
@@ -57,7 +58,6 @@ STATIC_DIR = Path(__file__).with_name("static")
 
 class StartRecordingRequest(BaseModel):
     name: str | None = None
-    format: str | None = None
 
 
 class DeleteFilesRequest(BaseModel):
@@ -181,7 +181,6 @@ def create_app(recorder: RecordingController) -> FastAPI:
             CMD_START,
             {
                 "name": req.name if req is not None else None,
-                "format": req.format if req is not None else None,
             },
         )
 
@@ -202,6 +201,12 @@ def parse_args() -> argparse.Namespace:
         default=DEFAULT_STREAM_IP,
         help=f"UDP stream destination IP address. Default: {DEFAULT_STREAM_IP}",
     )
+    parser.add_argument(
+        "--record-format",
+        choices=sorted(VALID_RECORD_FORMATS),
+        default="mp4",
+        help="Recording output format. Default: mp4",
+    )
     args = parser.parse_args()
 
     try:
@@ -214,6 +219,9 @@ def parse_args() -> argparse.Namespace:
 
 def main() -> None:
     args = parse_args()
-    configured_recorder = RecordingController(stream_ip=args.stream_ip)
+    configured_recorder = RecordingController(
+        record_format=args.record_format,
+        stream_ip=args.stream_ip,
+    )
     configured_app = create_app(configured_recorder)
     uvicorn.run(configured_app, host="0.0.0.0", port=8001)

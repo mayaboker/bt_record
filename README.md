@@ -58,11 +58,12 @@ source $HOME/.local/bin/env
 
 
 ## Config
-Set the UDP stream destination IP from the command line.
+Set the UDP stream destination IP and recording format from the command line.
 
 | config field  |  desc |
 |---|---|
 | --stream-ip  | client ip to stream to (port 5600)  |
+| --record-format  | recording output format: mp4 or raw  |
 
 
 ## usage
@@ -73,6 +74,12 @@ uv run bt-gst-record
 
 ```bash
 uv run bt-gst-record --stream-ip 10.0.0.17
+```
+
+```bash
+uv run bt-gst-record --record-format mp4
+uv run bt-gst-record --record-format raw
+uv run bt-gst-record --stream-ip 10.0.0.17 --record-format raw
 ```
 
 ### Web
@@ -89,4 +96,17 @@ gst-launch-1.0 -v \
   avdec_h264 ! \
   videoconvert ! \
   autovideosink sync=false
+```
+
+
+### play
+
+#### Play raw format
+
+```
+gst-launch-1.0 -v \
+  filesrc location=recording.i420 ! \
+  rawvideoparse format=i420 width=640 height=512 framerate=30/1 ! \
+  videoconvert ! \
+  autovideosink
 ```
