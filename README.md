@@ -110,3 +110,6 @@ gst-launch-1.0 -v \
   videoconvert ! \
   autovideosink
 ```
+
+
+gst-launch-1.0 -v filesrc location=recording.i420 ! rawvideoparse format=i420 width=640 height=512 framerate=30/1 ! videoconvert ! autovideosink

@@ -83,11 +83,29 @@
       color: #edf2f7;
       cursor: pointer;
       font-size: 14px;
+      transition:
+        background 120ms ease,
+        border-color 120ms ease,
+        transform 80ms ease;
+    }
+
+    button:hover:not(:disabled) {
+      border-color: #63b3ed;
+      background: #2c5282;
+    }
+
+    button:active:not(:disabled) {
+      transform: translateY(1px);
     }
 
     button.secondary {
       border-color: #4a5568;
       background: #1f2933;
+    }
+
+    button.secondary:hover:not(:disabled) {
+      border-color: #718096;
+      background: #2d3748;
     }
 
     button.stop {
@@ -217,6 +235,27 @@
       margin-top: 16px;
     }
 
+    .command-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+    }
+
+    .command-header h2 {
+      margin: 0;
+    }
+
+    .copy-button {
+      min-width: auto;
+      padding: 6px 10px;
+    }
+
+    .copy-button.copied {
+      border-color: #38a169;
+      background: #276749;
+    }
+
     pre {
       overflow-x: auto;
       margin: 12px 0 0;
@@ -322,11 +361,17 @@
         <dd id="help-version">unknown</dd>
       </dl>
       <div class="help-block">
-        <h2>Play MP4</h2>
+        <div class="command-header">
+          <h2>Play MP4</h2>
+          <button id="copy-mp4" class="secondary copy-button">Copy</button>
+        </div>
         <pre><code id="mp4-command"></code></pre>
       </div>
       <div class="help-block">
-        <h2>Play Raw I420</h2>
+        <div class="command-header">
+          <h2>Play Raw I420</h2>
+          <button id="copy-raw" class="secondary copy-button">Copy</button>
+        </div>
         <pre><code id="raw-command"></code></pre>
       </div>
     </div>
@@ -343,6 +388,8 @@
     const helpVersionEl = document.getElementById("help-version");
     const mp4CommandEl = document.getElementById("mp4-command");
     const rawCommandEl = document.getElementById("raw-command");
+    const copyMp4Button = document.getElementById("copy-mp4");
+    const copyRawButton = document.getElementById("copy-raw");
     const refreshFilesButton = document.getElementById("refresh-files");
     const deleteFilesButton = document.getElementById("delete-files");
     const startedEl = document.getElementById("started");
@@ -378,6 +425,44 @@
       helpVersionEl.textContent = displayValue(status.server_version, "unknown");
       mp4CommandEl.textContent = "gst-launch-1.0 -v filesrc location=recording.mp4 ! qtdemux ! h264parse ! avdec_h264 ! videoconvert ! autovideosink";
       rawCommandEl.textContent = `gst-launch-1.0 -v filesrc location=recording.i420 ! rawvideoparse format=i420 width=${width} height=${height} framerate=${fps}/1 ! videoconvert ! autovideosink`;
+    }
+
+    async function copyText(text) {
+      if (navigator.clipboard && window.isSecureContext) {
+        await navigator.clipboard.writeText(text);
+        return;
+      }
+
+      const textarea = document.createElement("textarea");
+      textarea.value = text;
+      textarea.setAttribute("readonly", "");
+      textarea.style.position = "fixed";
+      textarea.style.left = "-9999px";
+      document.body.appendChild(textarea);
+      textarea.select();
+      try {
+        if (!document.execCommand("copy")) {
+          throw new Error("Copy command failed");
+        }
+      } finally {
+        document.body.removeChild(textarea);
+      }
+    }
+
+    async function copyCommand(commandEl, button) {
+      try {
+        await copyText(commandEl.textContent);
+        const originalText = button.textContent;
+        button.textContent = "Copied";
+        button.classList.add("copied");
+        window.setTimeout(() => {
+          button.textContent = originalText;
+          button.classList.remove("copied");
+        }, 1200);
+        setMessage("Copied to clipboard");
+      } catch (err) {
+        setMessage(`Copy failed: ${err.message}`, true);
+      }
     }
 
     function formatSize(bytes) {
@@ -531,6 +616,14 @@
       if (event.target === helpDialog) {
         helpDialog.close();
       }
+    });
+
+    copyMp4Button.addEventListener("click", () => {
+      copyCommand(mp4CommandEl, copyMp4Button);
+    });
+
+    copyRawButton.addEventListener("click", () => {
+      copyCommand(rawCommandEl, copyRawButton);
     });
 
     refreshFilesButton.addEventListener("click", async () => {
