@@ -172,6 +172,11 @@
       color: #feb2b2;
     }
 
+    .status-error {
+      color: #feb2b2;
+      font-weight: 600;
+    }
+
     @media (max-width: 520px) {
       body {
         padding: 16px;
@@ -311,6 +316,7 @@
       lastFinalizedEl.textContent = displayValue(status.last_finalized_filename);
       modeEl.textContent = `${status.width}x${status.height} @ ${status.fps} fps`;
       errorEl.textContent = displayValue(status.error);
+      errorEl.classList.toggle("status-error", Boolean(status.error));
 
       startButton.disabled = !status.started || status.recording || status.stopping;
       stopButton.disabled = !status.recording || status.stopping;

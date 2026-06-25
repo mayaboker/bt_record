@@ -45,6 +45,11 @@ def get_element_or_raise(pipeline, name):
     return elem
 
 
+def validate_camera_device(device):
+    if not os.path.exists(device):
+        raise FileNotFoundError(f"Camera device does not exist: {device}")
+
+
 class CameraRecorder:
     def __init__(
         self,
@@ -57,6 +62,8 @@ class CameraRecorder:
     ):
         if record_format not in {"mp4", "raw"}:
             raise ValueError("record_format must be 'mp4' or 'raw'")
+
+        validate_camera_device(device)
 
         self.context = context
         self.device = device
@@ -398,6 +405,7 @@ class RecordingController:
         self.record_format = record_format
         self.target_folder = Path(target_folder)
         self.recorder = None
+        self.last_error = None
 
     def start(self):
         self.thread.start()
@@ -467,16 +475,43 @@ class RecordingController:
         if self.recorder is not None:
             return {"ok": True, **self.recorder.status()}
 
-        self.target_folder.mkdir(parents=True, exist_ok=True)
-        self.recorder = CameraRecorder(
-            context=self.context,
-            device=self.device,
-            width=self.width,
-            height=self.height,
-            fps=self.fps,
-            record_format=self.record_format,
-        )
-        self.recorder.start()
+        try:
+            self.target_folder.mkdir(parents=True, exist_ok=True)
+            recorder = CameraRecorder(
+                context=self.context,
+                device=self.device,
+                width=self.width,
+                height=self.height,
+                fps=self.fps,
+                record_format=self.record_format,
+            )
+            recorder.start()
+        except Exception as exc:
+            self.last_error = str(exc)
+            logger.exception("Failed to initialize camera pipeline")
+            try:
+                if "recorder" in locals():
+                    recorder.shutdown()
+            except Exception:
+                logger.exception("Failed to clean up partially initialized pipeline")
+            self.recorder = None
+            return {
+                "ok": False,
+                "started": False,
+                "recording": False,
+                "stopping": False,
+                "format": self.record_format,
+                "filename": None,
+                "last_finalized_filename": None,
+                "device": self.device,
+                "width": self.width,
+                "height": self.height,
+                "fps": self.fps,
+                "error": self.last_error,
+            }
+
+        self.recorder = recorder
+        self.last_error = None
         return {"ok": True, **self.recorder.status()}
 
     def _shutdown_pipeline(self):
@@ -512,7 +547,7 @@ class RecordingController:
                 "width": self.width,
                 "height": self.height,
                 "fps": self.fps,
-                "error": None,
+                "error": self.last_error,
             }
         return {"ok": True, **self.recorder.status()}
 

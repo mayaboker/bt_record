@@ -36,7 +36,7 @@ wheels = [
 [[package]]
 name = "bt-record"
 version = "0.1.0"
-source = { virtual = "." }
+source = { editable = "." }
 dependencies = [
     { name = "fastapi" },
     { name = "pycairo" },

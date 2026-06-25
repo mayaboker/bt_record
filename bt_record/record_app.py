@@ -1,4 +1,36 @@
+"""
+GStreamer Recording Management API
+
+A FastAPI-based HTTP service that provides REST API endpoints for managing
+GStreamer-based media recordings. The service handles starting/stopping recordings,
+monitoring recording status, and managing recorded files (download/delete).
+
+Interface (API Endpoints):
+    GET  /              - Serve the web UI (record.html)
+    GET  /status        - Get current recording status
+    POST /start         - Start a new recording session
+    POST /stop          - Stop the current recording
+    GET  /files         - List all recorded files with metadata
+    GET  /files/{name}  - Download a specific recording file
+    DELETE /files       - Delete all recorded files (with confirmation)
+
+Usage:
+    1. Start the server: python -m bt_record.record_app
+    2. Access web UI: http://localhost:8001
+    3. Control via API:
+       - Start recording: POST /start with optional {"name": "custom_name"}
+       - Check status: GET /status
+       - Stop recording: POST /stop
+       - List files: GET /files
+       - Download: GET /files/{filename}
+       - Delete all: DELETE /files with {"confirm": true}
+
+The service runs a background RecordingController that manages GStreamer
+processes asynchronously, with timeout handling for all operations (3s default).
+"""
+
 import asyncio
+from contextlib import asynccontextmanager
 from urllib.parse import quote
 from pathlib import Path
 
@@ -17,7 +49,6 @@ from bt_record.record_controller import (
 
 STATIC_DIR = Path(__file__).with_name("static")
 
-app = FastAPI()
 recorder = RecordingController()
 
 
@@ -29,14 +60,16 @@ class DeleteFilesRequest(BaseModel):
     confirm: bool = False
 
 
-@app.on_event("startup")
-def startup():
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # Startup
     recorder.start()
-
-
-@app.on_event("shutdown")
-def shutdown():
+    yield
+    # Shutdown
     recorder.stop()
+
+
+app = FastAPI(lifespan=lifespan)
 
 
 async def await_record_command(name: str, args: dict | None = None):

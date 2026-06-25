@@ -1,3 +1,7 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
 [project]
 name = "bt-record"
 version = "0.1.0"
@@ -12,7 +16,6 @@ dependencies = [
 ]
 
 [project.scripts]
-bt-record = "bt_record.app:main"
 bt-gst-record = "bt_record.record_app:main"
 
 [tool.setuptools.package-data]
