@@ -74,6 +74,32 @@
       font-size: 15px;
     }
 
+    .format-options {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px;
+    }
+
+    .format-options label {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      margin: 0;
+      color: #edf2f7;
+      cursor: pointer;
+    }
+
+    .format-options input {
+      width: auto;
+      margin: 0;
+      cursor: pointer;
+    }
+
+    .format-options label:has(input:disabled) {
+      cursor: not-allowed;
+      opacity: 0.6;
+    }
+
     button {
       min-width: 132px;
       padding: 9px 14px;
@@ -218,6 +244,20 @@
       <input id="record-name" placeholder="recording name">
     </section>
 
+    <section>
+      <label>Recording format</label>
+      <div class="format-options">
+        <label>
+          <input type="radio" name="record-format" value="mp4" checked>
+          MP4
+        </label>
+        <label>
+          <input type="radio" name="record-format" value="raw">
+          Raw I420
+        </label>
+      </div>
+    </section>
+
     <section class="actions">
       <button id="start">Start Recording</button>
       <button id="stop" class="stop">Stop Recording</button>
@@ -272,6 +312,7 @@
 
   <script>
     const recordNameInput = document.getElementById("record-name");
+    const recordFormatInputs = document.querySelectorAll("input[name='record-format']");
     const startButton = document.getElementById("start");
     const stopButton = document.getElementById("stop");
     const refreshButton = document.getElementById("refresh");
@@ -301,6 +342,20 @@
     function setMessage(text, isError = false) {
       messageEl.textContent = text || "";
       messageEl.className = isError ? "error" : "";
+    }
+
+    function selectedRecordFormat() {
+      const selected = document.querySelector("input[name='record-format']:checked");
+      return selected ? selected.value : "mp4";
+    }
+
+    function syncRecordFormat(format) {
+      if (format !== "mp4" && format !== "raw") {
+        return;
+      }
+      for (const input of recordFormatInputs) {
+        input.checked = input.value === format;
+      }
     }
 
     function formatSize(bytes) {
@@ -341,9 +396,13 @@
       modeEl.textContent = `${status.width}x${status.height} @ ${status.fps} fps`;
       errorEl.textContent = displayValue(status.error);
       errorEl.classList.toggle("status-error", Boolean(status.error));
+      syncRecordFormat(status.format);
 
       startButton.disabled = !status.started || status.recording || status.stopping;
       stopButton.disabled = !status.recording || status.stopping;
+      for (const input of recordFormatInputs) {
+        input.disabled = status.recording || status.stopping;
+      }
       updateDeleteButton();
     }
 
@@ -402,10 +461,11 @@
     startButton.addEventListener("click", async () => {
       try {
         const name = recordNameInput.value;
+        const format = selectedRecordFormat();
         const status = await requestJson("/start", {
           method: "POST",
           headers: {"content-type": "application/json"},
-          body: JSON.stringify({name}),
+          body: JSON.stringify({name, format}),
         });
         renderStatus(status);
         setMessage(`Recording started: ${status.filename}`);

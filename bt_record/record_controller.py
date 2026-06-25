@@ -16,7 +16,6 @@ gi.require_version("Gst", "1.0")
 gi.require_version("GLib", "2.0")
 
 from gi.repository import Gst, GLib
-from bt_record import DEST_STREAM_IP
 
 Gst.init(None)
 
@@ -40,6 +39,8 @@ CMD_STOP = "stop"
 CMD_STATUS = "status"
 
 VALID_RECORDING_NAME_RE = re.compile(r"^[A-Za-z0-9 _.-]+$")
+VALID_RECORD_FORMATS = {"mp4", "raw"}
+DEFAULT_STREAM_IP = "10.0.0.17"
 
 
 @dataclass
@@ -61,6 +62,12 @@ def validate_camera_device(device):
         raise FileNotFoundError(f"Camera device does not exist: {device}")
 
 
+def validate_record_format(record_format):
+    if record_format not in VALID_RECORD_FORMATS:
+        raise ValueError("record_format must be 'mp4' or 'raw'")
+    return record_format
+
+
 class CameraRecorder:
     def __init__(
         self,
@@ -70,9 +77,9 @@ class CameraRecorder:
         height=512,
         fps=30,
         record_format="mp4",
+        stream_ip=DEFAULT_STREAM_IP,
     ):
-        if record_format not in {"mp4", "raw"}:
-            raise ValueError("record_format must be 'mp4' or 'raw'")
+        validate_record_format(record_format)
 
         validate_camera_device(device)
 
@@ -82,6 +89,7 @@ class CameraRecorder:
         self.height = height
         self.fps = fps
         self.record_format = record_format
+        self.stream_ip = stream_ip
         self.record_filename = None
         self.last_finalized_filename = None
         self.pipeline_error = None
@@ -102,7 +110,7 @@ class CameraRecorder:
                      bframes=0 byte-stream=true 
                 ! h264parse config-interval=1 
                 ! rtph264pay pt=96 mtu=1400 config-interval=1 
-                ! udpsink host={DEST_STREAM_IP} port=5600 sync=false async=false
+                ! udpsink host={self.stream_ip} port=5600 sync=false async=false
         """
 
         logger.info("--------- pipeline description ---------")
@@ -372,6 +380,7 @@ class CameraRecorder:
             "width": self.width,
             "height": self.height,
             "fps": self.fps,
+            "stream_ip": self.stream_ip,
             "error": self.pipeline_error,
         }
 
@@ -413,6 +422,7 @@ class RecordingController:
         fps=30,
         record_format="mp4",
         target_folder="./output",
+        stream_ip=DEFAULT_STREAM_IP,
     ):
         self.commands: queue.Queue[Command] = queue.Queue()
         self.context = GLib.MainContext()
@@ -425,6 +435,7 @@ class RecordingController:
         self.fps = fps
         self.record_format = record_format
         self.target_folder = Path(target_folder)
+        self.stream_ip = stream_ip
         self.recorder = None
         self.last_error = None
 
@@ -484,7 +495,7 @@ class RecordingController:
         if name == CMD_SHUTDOWN:
             return self._shutdown_pipeline()
         if name == CMD_START:
-            return self._start_recording(args.get("name"))
+            return self._start_recording(args.get("name"), args.get("format"))
         if name == CMD_STOP:
             return self._stop_recording()
         if name == CMD_STATUS:
@@ -505,6 +516,7 @@ class RecordingController:
                 height=self.height,
                 fps=self.fps,
                 record_format=self.record_format,
+                stream_ip=self.stream_ip,
             )
             recorder.start()
         except Exception as exc:
@@ -528,6 +540,7 @@ class RecordingController:
                 "width": self.width,
                 "height": self.height,
                 "fps": self.fps,
+                "stream_ip": self.stream_ip,
                 "error": self.last_error,
             }
 
@@ -543,8 +556,19 @@ class RecordingController:
             return {"ok": True, **status}
         return {"ok": True, "started": False, "recording": False, "stopping": False}
 
-    def _start_recording(self, name: str | None = None):
+    def _start_recording(self, name: str | None = None, record_format: str | None = None):
         recorder = self._require_recorder()
+        selected_format = validate_record_format(
+            record_format if record_format is not None else "mp4"
+        )
+        if recorder.stopping:
+            raise RuntimeError("Recording is still stopping")
+        if recorder.recording:
+            raise RuntimeError("Already recording")
+        if not recorder.started:
+            raise RuntimeError("Camera pipeline is not running")
+        self.record_format = selected_format
+        recorder.record_format = selected_format
         filename = str(self._recording_path_for_name(name))
         recorder.start_recording(filename)
         return {"ok": True, **recorder.status()}
@@ -568,6 +592,7 @@ class RecordingController:
                 "width": self.width,
                 "height": self.height,
                 "fps": self.fps,
+                "stream_ip": self.stream_ip,
                 "error": self.last_error,
             }
         return {"ok": True, **self.recorder.status()}

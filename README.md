@@ -58,17 +58,21 @@ source $HOME/.local/bin/env
 
 
 ## Config
-for the version we need to set manual the stream ip address
+Set the UDP stream destination IP from the command line.
 
 | config field  |  desc |
 |---|---|
-| DEST_STREAM_IP  | client ip to stream to (port 5600)  |
+| --stream-ip  | client ip to stream to (port 5600)  |
 
 
 ## usage
 
 ```
 uv run bt-gst-record
+```
+
+```bash
+uv run bt-gst-record --stream-ip 10.0.0.17
 ```
 
 ### Web
