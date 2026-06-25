@@ -16,7 +16,7 @@ gi.require_version("Gst", "1.0")
 gi.require_version("GLib", "2.0")
 
 from gi.repository import Gst, GLib
-
+from bt_record import DEST_STREAM_IP
 
 Gst.init(None)
 
@@ -102,8 +102,12 @@ class CameraRecorder:
                      bframes=0 byte-stream=true 
                 ! h264parse config-interval=1 
                 ! rtph264pay pt=96 mtu=1400 config-interval=1 
-                ! udpsink host=127.0.0.1 port=5600 sync=false async=false
+                ! udpsink host={DEST_STREAM_IP} port=5600 sync=false async=false
         """
+
+        logger.info("--------- pipeline description ---------")
+        logger.info(pipeline_desc)
+        logger.info("--------- pipeline description ---------")
 
         self.pipeline = Gst.parse_launch(pipeline_desc)
         self.pipeline.set_name("camera-pipeline")

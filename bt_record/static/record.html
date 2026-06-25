@@ -177,6 +177,19 @@
       font-weight: 600;
     }
 
+    pre {
+      overflow-x: auto;
+      margin: 12px 0 0;
+      padding: 12px;
+      border: 1px solid #2d3748;
+      border-radius: 6px;
+      background: #0f141a;
+      color: #cbd5e0;
+      font-size: 13px;
+      line-height: 1.45;
+      white-space: pre;
+    }
+
     @media (max-width: 520px) {
       body {
         padding: 16px;
@@ -244,6 +257,17 @@
     </section>
 
     <section id="message"></section>
+
+    <section>
+      <h2>Receiver Pipeline</h2>
+      <pre><code>gst-launch-1.0 -v \
+  udpsrc port=5600 caps="application/x-rtp,media=video,encoding-name=H264,payload=96,clock-rate=90000" ! \
+  rtph264depay ! \
+  h264parse ! \
+  avdec_h264 ! \
+  videoconvert ! \
+  autovideosink sync=false</code></pre>
+    </section>
   </main>
 
   <script>

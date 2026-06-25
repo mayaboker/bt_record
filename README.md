@@ -24,8 +24,26 @@ The `whl` locate in dist folder
 uv build --wheel
 ```
 
+## Config
+for the version we need to set manual the stream ip address
+
+| config field  |  desc |
+|---|---|
+| DEST_STREAM_IP  | client ip to stream to (port 5600)  |
+
+
 ## usage
 
+```
+uv run bt-gst-record
+```
+
+### Web
+
+![alt text](docs/images/web.png)
+
+
+### Receiver pipe
 ```
 gst-launch-1.0 -v \
   udpsrc port=5600 caps="application/x-rtp,media=video,encoding-name=H264,payload=96,clock-rate=90000" ! \
