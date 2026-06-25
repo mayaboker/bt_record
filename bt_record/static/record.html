@@ -177,6 +177,46 @@
       font-weight: 600;
     }
 
+    dialog {
+      width: min(720px, calc(100vw - 32px));
+      max-height: calc(100vh - 48px);
+      overflow: auto;
+      padding: 0;
+      border: 1px solid #4a5568;
+      border-radius: 8px;
+      background: #151b22;
+      color: #edf2f7;
+    }
+
+    dialog::backdrop {
+      background: rgba(0, 0, 0, 0.65);
+    }
+
+    .modal-content {
+      padding: 16px;
+    }
+
+    .modal-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      margin-bottom: 12px;
+    }
+
+    .modal-header h2 {
+      margin: 0;
+    }
+
+    .modal-close {
+      min-width: auto;
+      padding: 6px 10px;
+    }
+
+    .help-block {
+      margin-top: 16px;
+    }
+
     pre {
       overflow-x: auto;
       margin: 12px 0 0;
@@ -222,6 +262,7 @@
       <button id="start">Start Recording</button>
       <button id="stop" class="stop">Stop Recording</button>
       <button id="refresh" class="secondary">Refresh Status</button>
+      <button id="help" class="secondary">Help</button>
     </section>
 
     <section>
@@ -270,11 +311,38 @@
     </section>
   </main>
 
+  <dialog id="help-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h2>Help</h2>
+        <button id="help-close" class="secondary modal-close">Close</button>
+      </div>
+      <dl>
+        <dt>Server version</dt>
+        <dd id="help-version">unknown</dd>
+      </dl>
+      <div class="help-block">
+        <h2>Play MP4</h2>
+        <pre><code id="mp4-command"></code></pre>
+      </div>
+      <div class="help-block">
+        <h2>Play Raw I420</h2>
+        <pre><code id="raw-command"></code></pre>
+      </div>
+    </div>
+  </dialog>
+
   <script>
     const recordNameInput = document.getElementById("record-name");
     const startButton = document.getElementById("start");
     const stopButton = document.getElementById("stop");
     const refreshButton = document.getElementById("refresh");
+    const helpButton = document.getElementById("help");
+    const helpDialog = document.getElementById("help-dialog");
+    const helpCloseButton = document.getElementById("help-close");
+    const helpVersionEl = document.getElementById("help-version");
+    const mp4CommandEl = document.getElementById("mp4-command");
+    const rawCommandEl = document.getElementById("raw-command");
     const refreshFilesButton = document.getElementById("refresh-files");
     const deleteFilesButton = document.getElementById("delete-files");
     const startedEl = document.getElementById("started");
@@ -301,6 +369,15 @@
     function setMessage(text, isError = false) {
       messageEl.textContent = text || "";
       messageEl.className = isError ? "error" : "";
+    }
+
+    function renderHelp(status) {
+      const width = status.width || 640;
+      const height = status.height || 512;
+      const fps = status.fps || 30;
+      helpVersionEl.textContent = displayValue(status.server_version, "unknown");
+      mp4CommandEl.textContent = "gst-launch-1.0 -v filesrc location=recording.mp4 ! qtdemux ! h264parse ! avdec_h264 ! videoconvert ! autovideosink";
+      rawCommandEl.textContent = `gst-launch-1.0 -v filesrc location=recording.i420 ! rawvideoparse format=i420 width=${width} height=${height} framerate=${fps}/1 ! videoconvert ! autovideosink`;
     }
 
     function formatSize(bytes) {
@@ -433,6 +510,26 @@
         setMessage("Status refreshed");
       } catch (err) {
         setMessage(err.message, true);
+      }
+    });
+
+    helpButton.addEventListener("click", async () => {
+      try {
+        const status = currentStatus || await refreshStatus();
+        renderHelp(status);
+        helpDialog.showModal();
+      } catch (err) {
+        setMessage(err.message, true);
+      }
+    });
+
+    helpCloseButton.addEventListener("click", () => {
+      helpDialog.close();
+    });
+
+    helpDialog.addEventListener("click", (event) => {
+      if (event.target === helpDialog) {
+        helpDialog.close();
       }
     });
 

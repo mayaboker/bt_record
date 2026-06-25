@@ -126,7 +126,9 @@ def create_app(recorder: RecordingController) -> FastAPI:
 
     @app.get("/status")
     async def status():
-        return await await_record_command(recorder, CMD_STATUS)
+        status = await await_record_command(recorder, CMD_STATUS)
+        status["server_version"] = __version__
+        return status
 
     @app.get("/files")
     async def files():
