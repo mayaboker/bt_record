@@ -37,8 +37,10 @@ from pathlib import Path
 import uvicorn
 from fastapi import FastAPI, HTTPException
 from fastapi.responses import FileResponse
+from loguru import logger
 from pydantic import BaseModel
 
+from bt_record import __version__
 from bt_record.record_controller import (
     CMD_START,
     CMD_STATUS,
@@ -63,6 +65,7 @@ class DeleteFilesRequest(BaseModel):
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     # Startup
+    logger.info(f"BT GStreamer Recorder v{__version__} starting")
     recorder.start()
     yield
     # Shutdown

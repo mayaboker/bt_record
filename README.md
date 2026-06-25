@@ -24,6 +24,39 @@ The `whl` locate in dist folder
 uv build --wheel
 ```
 
+## Install
+
+```bash title="install gstreamer"
+sudo apt install -y \
+  python3-gi \
+  python3-gst-1.0 \
+  gir1.2-gstreamer-1.0 \
+  gir1.2-gst-plugins-base-1.0 \
+  gstreamer1.0-tools \
+  gstreamer1.0-plugins-base \
+  gstreamer1.0-plugins-good \
+  gstreamer1.0-plugins-bad \
+  gstreamer1.0-plugins-ugly
+```
+
+```bash title="install apt dependencies"
+
+sudo apt install -y \
+  pkg-config \
+  libcairo2-dev \
+  libgirepository-2.0-dev \
+  gobject-introspection \
+  python3-dev \
+  build-essential
+```
+```bash
+# install uv from internet
+curl -LsSf https://astral.sh/uv/install.sh | sh
+# add automatic to /.bashrc
+source $HOME/.local/bin/env
+```
+
+
 ## Config
 for the version we need to set manual the stream ip address
 
