@@ -9,7 +9,32 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any
 
-import gi
+try:
+    import gi
+except ImportError as exc:
+    raise SystemExit(
+        """Missing PyGObject/GStreamer Python dependencies.\n"
+        On Ubuntu/Debian install:
+        sudo apt update
+        sudo apt install -y \
+        python3-gi \
+        python3-gst-1.0 \
+        gir1.2-gstreamer-1.0 \
+        gir1.2-gst-plugins-base-1.0 \
+        gstreamer1.0-tools \
+        gstreamer1.0-plugins-base \
+        gstreamer1.0-plugins-good \
+        gstreamer1.0-plugins-bad \
+        gstreamer1.0-plugins-ugly \
+        pkg-config \
+        libcairo2-dev \
+        libgirepository-2.0-dev \
+        gobject-introspection \
+        python3-dev \
+        build-essential
+        """
+    ) from exc
+
 from loguru import logger
 
 gi.require_version("Gst", "1.0")
