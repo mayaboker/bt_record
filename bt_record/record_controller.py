@@ -1,8 +1,8 @@
 import os
 import queue
 import re
+import sys
 import threading
-import logging
 from concurrent.futures import Future
 from dataclasses import dataclass
 from datetime import datetime
@@ -10,6 +10,7 @@ from pathlib import Path
 from typing import Any
 
 import gi
+from loguru import logger
 
 gi.require_version("Gst", "1.0")
 gi.require_version("GLib", "2.0")
@@ -19,7 +20,17 @@ from gi.repository import Gst, GLib
 
 Gst.init(None)
 
-logger = logging.getLogger(__name__)
+logger.remove()
+logger.add(
+    sys.stderr,
+    colorize=True,
+    format=(
+        "<green>{time:YYYY-MM-DD HH:mm:ss}</green> | "
+        "<level>{level: <8}</level> | "
+        "<cyan>{name}</cyan>:<cyan>{function}</cyan>:<cyan>{line}</cyan> - "
+        "<level>{message}</level>"
+    ),
+)
 
 
 CMD_INIT = "init"
@@ -85,7 +96,13 @@ class CameraRecorder:
             tee.
                 ! queue name=live-queue
                 ! videoconvert name=live-convert
-                ! autovideosink name=live-sink
+                ! x264enc name=encoder 
+                     bitrate=300 speed-preset=ultrafast tune=zerolatency 
+                     key-int-max=30 vbv-buf-capacity=1000 
+                     bframes=0 byte-stream=true 
+                ! h264parse config-interval=1 
+                ! rtph264pay pt=96 mtu=1400 config-interval=1 
+                ! udpsink host=127.0.0.1 port=5600 sync=false async=false
         """
 
         self.pipeline = Gst.parse_launch(pipeline_desc)
@@ -95,7 +112,7 @@ class CameraRecorder:
         self.tee = get_element_or_raise(self.pipeline, "tee")
         self.live_queue = get_element_or_raise(self.pipeline, "live-queue")
         self.live_convert = get_element_or_raise(self.pipeline, "live-convert")
-        self.live_sink = get_element_or_raise(self.pipeline, "live-sink")
+        # self.live_sink = get_element_or_raise(self.pipeline, "live-sink")
         self.src.set_property("device", self.device)
 
         self.record_bin = None
@@ -488,12 +505,12 @@ class RecordingController:
             recorder.start()
         except Exception as exc:
             self.last_error = str(exc)
-            logger.exception("Failed to initialize camera pipeline")
+            logger.error("Failed to initialize camera pipeline")
             try:
                 if "recorder" in locals():
                     recorder.shutdown()
             except Exception:
-                logger.exception("Failed to clean up partially initialized pipeline")
+                logger.error("Failed to clean up partially initialized pipeline")
             self.recorder = None
             return {
                 "ok": False,

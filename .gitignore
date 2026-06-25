@@ -1,3 +1,6 @@
 *.pyc
 __pycache__/
 bt_record.egg-info/
+build
+output
+dist/
