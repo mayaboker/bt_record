@@ -1,0 +1,293 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>BT Encoder Demo</title>
+  <style>
+    :root {
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      color-scheme: light dark;
+    }
+
+    body {
+      margin: 0;
+      padding: 24px;
+      background: #101418;
+      color: #edf2f7;
+    }
+
+    main {
+      max-width: 760px;
+      margin: 0 auto;
+    }
+
+    h1 {
+      margin: 0 0 20px;
+      font-size: 28px;
+      letter-spacing: 0;
+    }
+
+    section {
+      margin-bottom: 16px;
+      padding: 16px;
+      border: 1px solid #2d3748;
+      border-radius: 8px;
+      background: #151b22;
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 14px;
+    }
+
+    label {
+      display: block;
+      margin-bottom: 8px;
+      color: #cbd5e0;
+      font-size: 14px;
+    }
+
+    input,
+    select {
+      box-sizing: border-box;
+      width: 100%;
+      padding: 10px 12px;
+      border: 1px solid #4a5568;
+      border-radius: 6px;
+      background: #0f141a;
+      color: #edf2f7;
+      font-size: 15px;
+    }
+
+    button {
+      margin-top: 14px;
+      min-width: 120px;
+      padding: 9px 14px;
+      border: 1px solid #3182ce;
+      border-radius: 6px;
+      background: #2b6cb0;
+      color: #edf2f7;
+      cursor: pointer;
+      font-size: 14px;
+    }
+
+    button:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+
+    dl {
+      display: grid;
+      grid-template-columns: 170px minmax(0, 1fr);
+      gap: 8px 12px;
+      margin: 0;
+    }
+
+    dt {
+      color: #a0aec0;
+    }
+
+    dd {
+      margin: 0;
+      word-break: break-word;
+    }
+
+    #message {
+      min-height: 22px;
+      color: #90cdf4;
+    }
+
+    #message.error {
+      color: #feb2b2;
+    }
+
+    @media (max-width: 620px) {
+      body {
+        padding: 16px;
+      }
+
+      .grid,
+      dl {
+        grid-template-columns: 1fr;
+      }
+
+      button {
+        width: 100%;
+      }
+    }
+  </style>
+</head>
+<body>
+  <main>
+    <h1>BT Encoder Demo</h1>
+
+    <section>
+      <div class="grid">
+        <div>
+          <label for="bitrate">Bitrate kbps</label>
+          <input id="bitrate" type="number" min="100" max="10000" step="100">
+        </div>
+        <div>
+          <label for="key-int">Keyframe Interval</label>
+          <input id="key-int" type="number" min="1" max="300" step="1">
+        </div>
+        <div>
+          <label for="speed-preset">Speed Preset</label>
+          <select id="speed-preset"></select>
+        </div>
+        <div>
+          <label for="tune">Tune</label>
+          <select id="tune"></select>
+        </div>
+      </div>
+      <button id="apply">Apply</button>
+    </section>
+
+    <section>
+      <dl>
+        <dt>Pipeline</dt>
+        <dd id="started">unknown</dd>
+        <dt>Encoder</dt>
+        <dd id="encoder">unknown</dd>
+        <dt>Bitrate</dt>
+        <dd id="status-bitrate">unknown</dd>
+        <dt>Measured Bitrate</dt>
+        <dd id="status-measured-bitrate">unknown</dd>
+        <dt>Measurement Window</dt>
+        <dd id="status-window">unknown</dd>
+        <dt>Speed Preset</dt>
+        <dd id="status-preset">unknown</dd>
+        <dt>Keyframe Interval</dt>
+        <dd id="status-key-int">unknown</dd>
+        <dt>Tune</dt>
+        <dd id="status-tune">unknown</dd>
+      </dl>
+    </section>
+
+    <section id="message"></section>
+  </main>
+
+  <script>
+    const bitrateInput = document.getElementById("bitrate");
+    const keyIntInput = document.getElementById("key-int");
+    const speedPresetSelect = document.getElementById("speed-preset");
+    const tuneSelect = document.getElementById("tune");
+    const applyButton = document.getElementById("apply");
+    const startedEl = document.getElementById("started");
+    const encoderEl = document.getElementById("encoder");
+    const statusBitrateEl = document.getElementById("status-bitrate");
+    const statusMeasuredBitrateEl = document.getElementById("status-measured-bitrate");
+    const statusWindowEl = document.getElementById("status-window");
+    const statusPresetEl = document.getElementById("status-preset");
+    const statusKeyIntEl = document.getElementById("status-key-int");
+    const statusTuneEl = document.getElementById("status-tune");
+    const messageEl = document.getElementById("message");
+    let controlsDirty = false;
+
+    function yesNo(value) {
+      return value ? "yes" : "no";
+    }
+
+    function setMessage(text, isError = false) {
+      messageEl.textContent = text || "";
+      messageEl.className = isError ? "error" : "";
+    }
+
+    async function requestJson(url, options = {}) {
+      const response = await fetch(url, options);
+      const body = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        throw new Error(body.detail || `HTTP ${response.status}`);
+      }
+      return body;
+    }
+
+    function fillSelect(select, values, selected) {
+      const current = select.value || selected;
+      select.replaceChildren();
+      for (const value of values) {
+        const option = document.createElement("option");
+        option.value = value;
+        option.textContent = value;
+        option.selected = value === current;
+        select.appendChild(option);
+      }
+      select.value = selected;
+    }
+
+    function renderStatus(status, options = {}) {
+      const forceControls = options.forceControls || false;
+      startedEl.textContent = yesNo(status.started);
+      encoderEl.textContent = status.has_encoder ? "ready" : "missing";
+      statusBitrateEl.textContent = `${status.bitrate_kbps} kbps`;
+      statusMeasuredBitrateEl.textContent = `${status.measured_bitrate_kbps.toFixed(1)} kbps`;
+      statusWindowEl.textContent = `${status.measured_window_seconds.toFixed(1)} s`;
+      statusPresetEl.textContent = status.speed_preset;
+      statusKeyIntEl.textContent = status.key_int_max;
+      statusTuneEl.textContent = status.tune;
+
+      bitrateInput.min = status.min_bitrate_kbps;
+      bitrateInput.max = status.max_bitrate_kbps;
+      keyIntInput.min = status.min_key_int_max;
+      keyIntInput.max = status.max_key_int_max;
+
+      if (forceControls || !controlsDirty) {
+        bitrateInput.value = status.bitrate_kbps;
+        keyIntInput.value = status.key_int_max;
+        fillSelect(speedPresetSelect, status.supported_speed_presets, status.speed_preset);
+        fillSelect(tuneSelect, status.supported_tunes, status.tune);
+      }
+
+      const disabled = !status.started || !status.has_encoder;
+      bitrateInput.disabled = disabled;
+      keyIntInput.disabled = disabled;
+      speedPresetSelect.disabled = disabled;
+      tuneSelect.disabled = disabled;
+      applyButton.disabled = disabled;
+    }
+
+    async function refreshStatus() {
+      const status = await requestJson("/status");
+      renderStatus(status);
+      return status;
+    }
+
+    applyButton.addEventListener("click", async () => {
+      try {
+        const status = await requestJson("/encoder", {
+          method: "POST",
+          headers: {"content-type": "application/json"},
+          body: JSON.stringify({
+            bitrate_kbps: Number(bitrateInput.value),
+            speed_preset: speedPresetSelect.value,
+            key_int_max: Number(keyIntInput.value),
+            tune: tuneSelect.value,
+          }),
+        });
+        controlsDirty = false;
+        renderStatus(status, {forceControls: true});
+        setMessage("Encoder settings applied");
+      } catch (err) {
+        setMessage(err.message, true);
+        await refreshStatus().catch(() => {});
+      }
+    });
+
+    for (const control of [bitrateInput, keyIntInput, speedPresetSelect, tuneSelect]) {
+      control.addEventListener("input", () => {
+        controlsDirty = true;
+      });
+      control.addEventListener("change", () => {
+        controlsDirty = true;
+      });
+    }
+
+    refreshStatus().catch((err) => setMessage(err.message, true));
+    setInterval(() => {
+      refreshStatus().catch((err) => setMessage(err.message, true));
+    }, 2000);
+  </script>
+</body>
+</html>
