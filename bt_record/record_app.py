@@ -29,27 +29,22 @@ The service runs a background RecordingController that manages GStreamer
 processes asynchronously, with timeout handling for all operations (3s default).
 """
 
-import argparse
 import asyncio
-from ipaddress import ip_address
 from contextlib import asynccontextmanager
 from urllib.parse import quote
 from pathlib import Path
+from typing import Any
 
-import uvicorn
 from fastapi import FastAPI, HTTPException
 from fastapi.responses import FileResponse
 from loguru import logger
 from pydantic import BaseModel
 
 from bt_record import __version__
-from bt_record.record_controller import (
+from bt_record.constants import (
     CMD_START,
     CMD_STATUS,
     CMD_STOP,
-    DEFAULT_STREAM_IP,
-    RecordingController,
-    VALID_RECORD_FORMATS,
 )
 
 
@@ -65,7 +60,7 @@ class DeleteFilesRequest(BaseModel):
 
 
 async def await_record_command(
-    recorder: RecordingController,
+    recorder: Any,
     name: str,
     args: dict | None = None,
 ):
@@ -87,7 +82,7 @@ async def await_record_command(
         )
 
 
-def list_recording_files(recorder: RecordingController):
+def list_recording_files(recorder: Any):
     target_folder = recorder.target_folder
     if not target_folder.exists():
         return []
@@ -110,7 +105,7 @@ def list_recording_files(recorder: RecordingController):
     return files
 
 
-def create_app(recorder: RecordingController) -> FastAPI:
+def create_app(recorder: Any) -> FastAPI:
     @asynccontextmanager
     async def lifespan(app: FastAPI):
         logger.info(f"BT GStreamer Recorder v{__version__} starting")
@@ -193,37 +188,7 @@ def create_app(recorder: RecordingController) -> FastAPI:
     return app
 
 
-app = create_app(RecordingController())
-
-
-def parse_args() -> argparse.Namespace:
-    parser = argparse.ArgumentParser(description="Run the BT GStreamer recorder API.")
-    parser.add_argument(
-        "--stream-ip",
-        default=DEFAULT_STREAM_IP,
-        help=f"UDP stream destination IP address. Default: {DEFAULT_STREAM_IP}",
-    )
-    parser.add_argument(
-        "--record-format",
-        choices=sorted(VALID_RECORD_FORMATS),
-        default="mp4",
-        help="Recording output format. Default: mp4",
-    )
-    args = parser.parse_args()
-
-    try:
-        ip_address(args.stream_ip)
-    except ValueError:
-        parser.error(f"invalid --stream-ip value: {args.stream_ip!r}")
-
-    return args
-
-
 def main() -> None:
-    args = parse_args()
-    configured_recorder = RecordingController(
-        record_format=args.record_format,
-        stream_ip=args.stream_ip,
-    )
-    configured_app = create_app(configured_recorder)
-    uvicorn.run(configured_app, host="0.0.0.0", port=8001)
+    from bt_record.main import main as run_main
+
+    run_main()

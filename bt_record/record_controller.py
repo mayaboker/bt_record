@@ -9,30 +9,26 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any
 
+from bt_record.config import RecorderConfig
+from bt_record.constants import (
+    CMD_INIT,
+    CMD_SHUTDOWN,
+    CMD_START,
+    CMD_STATUS,
+    CMD_STOP,
+    DEFAULT_STREAM_IP,
+    DEFAULT_STREAM_IP_PORT,
+    VALID_RECORD_FORMATS,
+)
+from bt_record.errors import RecordExitCode, RecordStartupError
+from bt_record.pipeline import build_live_pipeline, build_recording_branch
+
 try:
     import gi
 except ImportError as exc:
-    raise SystemExit(
-        """Missing PyGObject/GStreamer Python dependencies.\n"
-        On Ubuntu/Debian install:
-        sudo apt update
-        sudo apt install -y \
-        python3-gi \
-        python3-gst-1.0 \
-        gir1.2-gstreamer-1.0 \
-        gir1.2-gst-plugins-base-1.0 \
-        gstreamer1.0-tools \
-        gstreamer1.0-plugins-base \
-        gstreamer1.0-plugins-good \
-        gstreamer1.0-plugins-bad \
-        gstreamer1.0-plugins-ugly \
-        pkg-config \
-        libcairo2-dev \
-        libgirepository-2.0-dev \
-        gobject-introspection \
-        python3-dev \
-        build-essential
-        """
+    raise RecordStartupError(
+        "Missing PyGObject/GStreamer Python dependencies",
+        exit_code=RecordExitCode.GSTREAMER_DEPENDENCY_MISSING,
     ) from exc
 
 from loguru import logger
@@ -57,15 +53,7 @@ logger.add(
 )
 
 
-CMD_INIT = "init"
-CMD_SHUTDOWN = "shutdown"
-CMD_START = "start"
-CMD_STOP = "stop"
-CMD_STATUS = "status"
-
 VALID_RECORDING_NAME_RE = re.compile(r"^[A-Za-z0-9 _.-]+$")
-VALID_RECORD_FORMATS = {"mp4", "raw"}
-DEFAULT_STREAM_IP = "10.0.0.17"
 
 
 @dataclass
@@ -97,13 +85,24 @@ class CameraRecorder:
     def __init__(
         self,
         context,
+        config: RecorderConfig | None = None,
         device="/dev/video0",
         width=640,
         height=512,
         fps=30,
         record_format="mp4",
         stream_ip=DEFAULT_STREAM_IP,
+        stream_ip_port=DEFAULT_STREAM_IP_PORT,
     ):
+        if config is not None:
+            device = config.device
+            width = config.width
+            height = config.height
+            fps = config.fps
+            record_format = config.record_format
+            stream_ip = config.stream_ip
+            stream_ip_port = config.stream_ip_port
+
         validate_record_format(record_format)
 
         validate_camera_device(device)
@@ -115,28 +114,21 @@ class CameraRecorder:
         self.fps = fps
         self.record_format = record_format
         self.stream_ip = stream_ip
+        self.stream_ip_port = stream_ip_port
+        self.config = RecorderConfig(
+            stream_ip=self.stream_ip,
+            stream_ip_port=self.stream_ip_port,
+            device=self.device,
+            width=self.width,
+            height=self.height,
+            fps=self.fps,
+            record_format=self.record_format,
+        )
         self.record_filename = None
         self.last_finalized_filename = None
         self.pipeline_error = None
 
-        pipeline_desc = f"""
-            v4l2src name=camera
-                ! video/x-raw,format=YUY2,width={self.width},height={self.height},framerate={self.fps}/1
-                ! videoconvert
-                ! video/x-raw,format=I420
-                ! tee name=tee
-
-            tee.
-                ! queue name=live-queue
-                ! videoconvert name=live-convert
-                ! x264enc name=encoder 
-                     bitrate=300 speed-preset=ultrafast tune=zerolatency 
-                     key-int-max=30 vbv-buf-capacity=1000 
-                     bframes=0 byte-stream=true 
-                ! h264parse config-interval=1 
-                ! rtph264pay pt=96 mtu=1400 config-interval=1 
-                ! udpsink host={self.stream_ip} port=5600 sync=false async=false
-        """
+        pipeline_desc = build_live_pipeline(self.config)
 
         logger.info("--------- pipeline description ---------")
         logger.info(pipeline_desc)
@@ -350,30 +342,7 @@ class CameraRecorder:
         return Gst.PadProbeReturn.OK
 
     def _create_record_bin(self, filename):
-        if self.record_format == "mp4":
-            record_desc = f"""
-            queue name=record-queue flush-on-eos=true
-                ! videoconvert name=record-convert
-                ! videorate name=record-rate drop-only=true
-                ! video/x-raw,format=I420,framerate={self.fps}/1
-                ! x264enc name=record-encoder
-                          tune=zerolatency
-                          speed-preset=veryfast
-                          key-int-max={self.fps}
-                ! h264parse name=record-parser
-                ! mp4mux name=record-muxer
-                ! filesink name=record-sink sync=false
-        """
-        else:
-            print("Recording raw I420 video")
-            print(filename)
-            record_desc = f"""
-            queue name=record-queue flush-on-eos=true
-                ! videoconvert name=record-convert
-                ! videorate name=record-rate drop-only=true
-                ! video/x-raw,format=I420,framerate={self.fps}/1
-                ! filesink name=record-sink sync=false
-        """
+        record_desc = build_recording_branch(self.record_format, self.fps)
 
         record_bin = Gst.parse_bin_from_description(record_desc, True)
         record_bin.set_name("record-bin")
@@ -408,6 +377,7 @@ class CameraRecorder:
             "height": self.height,
             "fps": self.fps,
             "stream_ip": self.stream_ip,
+            "stream_ip_port": self.stream_ip_port,
             "error": self.pipeline_error,
         }
 
@@ -443,6 +413,7 @@ class CameraRecorder:
 class RecordingController:
     def __init__(
         self,
+        config: RecorderConfig | None = None,
         device="/dev/video0",
         width=640,
         height=512,
@@ -450,7 +421,18 @@ class RecordingController:
         record_format="mp4",
         target_folder="./output",
         stream_ip=DEFAULT_STREAM_IP,
+        stream_ip_port=DEFAULT_STREAM_IP_PORT,
     ):
+        if config is not None:
+            device = config.device
+            width = config.width
+            height = config.height
+            fps = config.fps
+            record_format = config.record_format
+            target_folder = config.target_folder
+            stream_ip = config.stream_ip
+            stream_ip_port = config.stream_ip_port
+
         validate_record_format(record_format)
 
         self.commands: queue.Queue[Command] = queue.Queue()
@@ -465,6 +447,17 @@ class RecordingController:
         self.record_format = record_format
         self.target_folder = Path(target_folder)
         self.stream_ip = stream_ip
+        self.stream_ip_port = stream_ip_port
+        self.config = RecorderConfig(
+            stream_ip=self.stream_ip,
+            stream_ip_port=self.stream_ip_port,
+            device=self.device,
+            width=self.width,
+            height=self.height,
+            fps=self.fps,
+            record_format=self.record_format,
+            target_folder=str(self.target_folder),
+        )
         self.recorder = None
         self.last_error = None
 
@@ -540,12 +533,7 @@ class RecordingController:
             self.target_folder.mkdir(parents=True, exist_ok=True)
             recorder = CameraRecorder(
                 context=self.context,
-                device=self.device,
-                width=self.width,
-                height=self.height,
-                fps=self.fps,
-                record_format=self.record_format,
-                stream_ip=self.stream_ip,
+                config=self.config,
             )
             recorder.start()
         except Exception as exc:
@@ -570,6 +558,7 @@ class RecordingController:
                 "height": self.height,
                 "fps": self.fps,
                 "stream_ip": self.stream_ip,
+                "stream_ip_port": self.stream_ip_port,
                 "error": self.last_error,
             }
 
@@ -617,6 +606,7 @@ class RecordingController:
                 "height": self.height,
                 "fps": self.fps,
                 "stream_ip": self.stream_ip,
+                "stream_ip_port": self.stream_ip_port,
                 "error": self.last_error,
             }
         return {"ok": True, **self.recorder.status()}

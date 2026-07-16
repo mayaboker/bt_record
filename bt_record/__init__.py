@@ -7,4 +7,4 @@ except PackageNotFoundError:
     __version__ = "0.0.0"
 
 
-DEST_STREAM_IP = "10.0.0.17"
+DEST_STREAM_IP = "127.0.0.1"
