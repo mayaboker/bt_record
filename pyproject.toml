@@ -21,7 +21,7 @@ dependencies = [
 bt-gst-record = "bt_record.main:main"
 
 [tool.setuptools.package-data]
-bt_record = ["static/*.html"]
+bt_record = ["static/*.html", "scripts/*.sh"]
 
 [tool.setuptools.packages.find]
 where = ["."]

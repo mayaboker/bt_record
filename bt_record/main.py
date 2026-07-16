@@ -28,6 +28,7 @@ from bt_record.config import (
     validate_config,
 )
 from bt_record.constants import DEFAULT_HTTP_HOST
+from bt_record.device_formats import dump_device_formats
 from bt_record.errors import RecordExitCode, RecordStartupError
 from bt_record.pipeline import (
     build_live_pipeline,
@@ -74,6 +75,11 @@ def dispatch_command(options: CliOptions) -> None:
     if options.command == CommandName.DUMP_RECEIVER_PIPE:
         validate_config(config, require_device=False)
         print(build_receiver_command(config))
+        return
+
+    if options.command == CommandName.DUMP_DEVICE_FORMATS:
+        validate_config(config, require_device=True)
+        print(dump_device_formats(config), end="")
         return
 
     if options.command == CommandName.TEST:

@@ -25,6 +25,7 @@ The package entrypoint should support:
 - `dump_config`: print effective configuration if config-file support is added.
 - `dump_pipe`: dump pipe use config object to build the correct pipe
 - `dump_receiver_pipe`: print runnable receiver pipeline using `fpsdisplaysink`
+- `dump_device_formats`: print camera formats using `v4l2-ctl --list-formats-ext`
 - `test`: run the gstreamer pipe with `videtestsrc` read all width, height and fps from the configuration
 
 `main(args=None, standalone_mode=True)` should be callable from tests.
@@ -41,6 +42,7 @@ Before starting Uvicorn or any recorder worker thread, validate:
 - stream IP is valid
 - target recording directory can be created and written
 - GStreamer/PyGObject dependencies are available
+- `v4l2-ctl` is available for `dump_device_formats`
 
 Expected startup failures should produce one clear log line and a named exit
 code. They should not print a Python traceback.

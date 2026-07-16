@@ -15,6 +15,7 @@ class CommandName:
     DUMP_CONFIG = "dump_config"
     DUMP_PIPE = "dump_pipe"
     DUMP_RECEIVER_PIPE = "dump_receiver_pipe"
+    DUMP_DEVICE_FORMATS = "dump_device_formats"
     TEST = "test"
 
 
@@ -64,6 +65,11 @@ def parse_cli_args(args: Sequence[str] | None = None) -> CliOptions:
         subparsers,
         CommandName.DUMP_RECEIVER_PIPE,
         "Print receiver GStreamer pipeline.",
+    )
+    _add_config_command(
+        subparsers,
+        CommandName.DUMP_DEVICE_FORMATS,
+        "Print camera device formats using v4l2-ctl.",
     )
     _add_config_command(subparsers, CommandName.TEST, "Run videotestsrc pipeline.")
 
