@@ -140,3 +140,44 @@ gst-launch-1.0 -v \
   autovideosink
 ```
 
+---
+
+## prod
+
+```
+uv run bt-gst-record --help
+```
+
+```
+uv run bt-gst-record dump_device_formats
+```
+
+```
+uv run bt-gst-record dump_config
+uv run bt-gst-record dump_config > bat_config/video.yaml
+
+```
+
+```
+uv run bt-gst-record run -c bat_config/video.yaml
+```
+
+
+```
+gst-launch-1.0 v4l2src name=camera --device /dev/video4 \
+            ! video/x-raw,format=YUY2,width=640,height=512,framerate=30/1 \
+            ! videoconvert ! fakesink
+```
+
+
+```
+gst-launch-1.0 -v udpsrc port=5600 caps="application/x-rtp,media=video,encoding-name=H264,payload=96,clock-rate=90000" \
+            ! rtph264depay \
+            ! h264parse \
+            ! avdec_h264 \
+            ! videoconvert \
+            ! fpsdisplaysink video-sink=autovideosink sync=false text-overlay=true
+
+```
+
+![alt text](docs/images/iftop.png)

@@ -6,7 +6,7 @@ from bt_record.errors import RecordExitCode, RecordStartupError
 
 def build_live_pipeline(config: RecorderConfig) -> str:
     return f"""
-        v4l2src name=camera
+        v4l2src name=camera device={config.device} 
             ! video/x-raw,format={config.video_format},width={config.width},height={config.height},framerate={config.fps}/1
             ! videoconvert
             ! video/x-raw,format=I420
@@ -27,7 +27,7 @@ def build_live_pipeline(config: RecorderConfig) -> str:
 
 def build_test_pipeline(config: RecorderConfig) -> str:
     return f"""
-        videotestsrc is-live=true
+        videotestsrc is-live=true 
             ! video/x-raw,format={config.video_format},width={config.width},height={config.height},framerate={config.fps}/1
             ! videoconvert
             ! video/x-raw,format=I420
