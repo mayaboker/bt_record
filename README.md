@@ -21,7 +21,7 @@ using uv to build the project as whl file
 The `whl` locate in dist folder
 
 ```bash
-uv build --wheel
+uv build
 ```
 
 ## Install
@@ -57,26 +57,50 @@ source $HOME/.local/bin/env
 ```
 
 
-## Config
-Set the UDP stream destination IP and recording format from the command line.
-
-| config field  |  desc |
-|---|---|
-| --stream-ip  | client ip to stream to (port 5600)  |
-| --record-format  | recording output format: mp4 or raw  |
-| --video-format  | camera raw video format, for example YUY2 or NV12  |
 
 
 ## usage
 
 ```
 uv run bt-gst-record run
+uv run bt-gst-record run -c config.yaml
 ```
+
+## cli commands
+
+| command | description |
+|---|---|
+| `uv run bt-gst-record run` | Start the recorder HTTP service and camera pipeline. |
+| `uv run bt-gst-record version` | Print the installed package version. |
+| `uv run bt-gst-record dump_config` | Print the effective config as YAML after defaults, config file, and CLI overrides. |
+| `uv run bt-gst-record dump_pipe` | Print the live GStreamer camera-to-UDP pipeline. |
+| `uv run bt-gst-record dump_receiver_pipe` | Print a runnable receiver GStreamer command for the UDP stream. |
+| `uv run bt-gst-record dump_device_formats` | Print camera device formats using `v4l2-ctl`. |
+| `uv run bt-gst-record test` | Run a synthetic `videotestsrc` streaming pipeline without requiring a camera device. |
+
+Control config from the CLI:
+
+| option | description |
+|---|---|
+| `-c, --config PATH` | Load recorder settings from a YAML config file. |
+| `--stream-ip IP` | Set the UDP stream destination IP address. |
+| `--stream-ip-port PORT` | Set the UDP stream destination port. |
+| `--device PATH` | Set the camera device path. |
+| `--width WIDTH` | Set the camera capture width. |
+| `--height HEIGHT` | Set the camera capture height. |
+| `--fps FPS` | Set the camera frames per second. |
+| `--record-format {mp4,raw}` | Set the recording output format. |
+| `--video-format FORMAT` | Set the camera raw video format, for example `YUY2` or `NV12`. |
+| `--http-server-port PORT` | Set the HTTP server port. |
+| `--target-folder PATH` | Set the recording output folder. |
+
+
+### TIP
+Create config.yaml
 
 ```bash
-uv run bt-gst-record --stream-ip 10.0.0.17
+uv run bt-gst-record dump_config > config.yaml
 ```
-
 
 ### Web
 
@@ -85,11 +109,11 @@ uv run bt-gst-record --stream-ip 10.0.0.17
 
 ###
 
-```
+```bash title="test video src"
 gst-launch-1.0 v4l2src name=camera \
-            ! video/x-raw,format=YU12,width=640,height=512,framerate=30/1 \
-            ! videoconvert \
-            ! autovideosink
+  ! video/x-raw,format=I420,width=640,height=512,framerate=30/1 \
+  ! videoconvert \
+  ! autovideosink
 ```
 
 ### Receiver pipe
@@ -116,5 +140,3 @@ gst-launch-1.0 -v \
   autovideosink
 ```
 
-
-gst-launch-1.0 -v filesrc location=recording.i420 ! rawvideoparse format=i420 width=640 height=512 framerate=30/1 ! videoconvert ! autovideosink
