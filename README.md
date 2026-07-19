@@ -109,7 +109,7 @@ uv run bt-gst-record dump_config > config.yaml
 
 ###
 
-```bash title="test video src"
+```bash title="test video src
 gst-launch-1.0 v4l2src name=camera \
   ! video/x-raw,format=I420,width=640,height=512,framerate=30/1 \
   ! videoconvert \
