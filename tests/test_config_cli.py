@@ -11,6 +11,7 @@ from bt_record.constants import (
     DEFAULT_STREAM_IP,
     DEFAULT_STREAM_IP_PORT,
     DEFAULT_TARGET_FOLDER,
+    DEFAULT_VIDEO_FORMAT,
     DEFAULT_WIDTH,
 )
 from bt_record.errors import RecordExitCode
@@ -28,6 +29,7 @@ def test_recorder_config_defaults():
     assert config.height == DEFAULT_HEIGHT
     assert config.fps == DEFAULT_FPS
     assert config.record_format == DEFAULT_RECORD_FORMAT
+    assert config.video_format == DEFAULT_VIDEO_FORMAT
     assert config.http_server_port == DEFAULT_HTTP_PORT
     assert config.target_folder == DEFAULT_TARGET_FOLDER
 
@@ -41,6 +43,7 @@ def test_yaml_values_override_defaults(tmp_path):
                 "width": 800,
                 "height": 600,
                 "fps": 25,
+                "video_format": "NV12",
             }
         ),
         encoding="utf-8",
@@ -52,6 +55,7 @@ def test_yaml_values_override_defaults(tmp_path):
     assert config.width == 800
     assert config.height == 600
     assert config.fps == 25
+    assert config.video_format == "NV12"
 
 
 def test_cli_values_override_yaml(tmp_path):
@@ -144,6 +148,8 @@ def test_dump_pipe_uses_effective_config(tmp_path, capsys):
             "600",
             "--fps",
             "25",
+            "--video-format",
+            "NV12",
             "--target-folder",
             str(tmp_path / "out"),
         ],
@@ -154,6 +160,7 @@ def test_dump_pipe_uses_effective_config(tmp_path, capsys):
     assert "width=800" in output
     assert "height=600" in output
     assert "framerate=25/1" in output
+    assert "format=NV12" in output
     assert "host=127.0.0.3" in output
     assert "port=5601" in output
 
@@ -244,6 +251,15 @@ def test_invalid_dimensions_fail_before_startup(tmp_path):
 def test_bad_record_format_exits_with_usage_code():
     try:
         main(["dump_config", "--record-format", "avi"], standalone_mode=True)
+    except SystemExit as exc:
+        assert exc.code == RecordExitCode.CLI_USAGE_ERROR
+    else:
+        raise AssertionError("SystemExit was not raised")
+
+
+def test_bad_video_format_exits_with_usage_code():
+    try:
+        main(["dump_config", "--video-format", "NV12 ! fakesink"], standalone_mode=True)
     except SystemExit as exc:
         assert exc.code == RecordExitCode.CLI_USAGE_ERROR
     else:

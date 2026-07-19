@@ -20,6 +20,7 @@ def test_live_pipeline_uses_camera_and_config_values():
         width=800,
         height=600,
         fps=25,
+        video_format="NV12",
     )
 
     pipeline = build_live_pipeline(config)
@@ -27,13 +28,14 @@ def test_live_pipeline_uses_camera_and_config_values():
     assert "v4l2src name=camera" in pipeline
     assert "width=800" in pipeline
     assert "height=600" in pipeline
+    assert "format=NV12" in pipeline
     assert "framerate=25/1" in pipeline
     assert "host=127.0.0.9" in pipeline
     assert "port=5609" in pipeline
 
 
 def test_test_pipeline_uses_videotestsrc_not_camera():
-    config = RecorderConfig(width=320, height=240, fps=15)
+    config = RecorderConfig(width=320, height=240, fps=15, video_format="UYVY")
 
     pipeline = build_test_pipeline(config)
 
@@ -41,6 +43,7 @@ def test_test_pipeline_uses_videotestsrc_not_camera():
     assert "v4l2src" not in pipeline
     assert "width=320" in pipeline
     assert "height=240" in pipeline
+    assert "format=UYVY" in pipeline
     assert "framerate=15/1" in pipeline
 
 

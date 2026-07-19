@@ -21,6 +21,7 @@ surfaces needed by later milestones.
   - `height=512`
   - `fps=30`
   - `record_format="mp4"`
+  - `video_format="YUY2"`
   - `http_server_port=8001`
   - `target_folder="./output"`
 - Extend CLI parsing to command-based behavior:
@@ -65,6 +66,7 @@ bt-gst-record test [options]
   - `--height HEIGHT`
   - `--fps FPS`
   - `--record-format {mp4,raw}`
+  - `--video-format VIDEO_FORMAT`
   - `--http-server-port PORT`
   - `--target-folder PATH`
 - `run` passes config into `RecordingController` and starts Uvicorn on `0.0.0.0:<http_server_port>`.

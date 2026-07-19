@@ -86,6 +86,7 @@ def test_camera_recorder_uses_live_pipeline_builder(monkeypatch, tmp_path):
         width=800,
         height=600,
         fps=25,
+        video_format="NV12",
     )
 
     def fake_parse_launch(pipeline_desc):
@@ -102,6 +103,7 @@ def test_camera_recorder_uses_live_pipeline_builder(monkeypatch, tmp_path):
 
     assert captured["pipeline_desc"] == build_live_pipeline(config)
     assert recorder.src.properties["device"] == config.device
+    assert recorder.config.video_format == "NV12"
 
 
 def test_create_record_bin_uses_recording_branch_builder(monkeypatch, tmp_path):
@@ -145,6 +147,7 @@ def test_recording_controller_passes_config_to_camera_recorder(monkeypatch, tmp_
         height=600,
         fps=25,
         record_format="raw",
+        video_format="UYVY",
     )
 
     class FakeCameraRecorder:

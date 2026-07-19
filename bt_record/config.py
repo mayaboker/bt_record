@@ -3,6 +3,7 @@ from __future__ import annotations
 from dataclasses import asdict, dataclass, fields
 from ipaddress import ip_address
 from pathlib import Path
+import re
 from typing import Any
 
 import yaml
@@ -16,6 +17,7 @@ from bt_record.constants import (
     DEFAULT_STREAM_IP,
     DEFAULT_STREAM_IP_PORT,
     DEFAULT_TARGET_FOLDER,
+    DEFAULT_VIDEO_FORMAT,
     DEFAULT_WIDTH,
     VALID_RECORD_FORMATS,
 )
@@ -31,6 +33,7 @@ class RecorderConfig:
     height: int = DEFAULT_HEIGHT
     fps: int = DEFAULT_FPS
     record_format: str = DEFAULT_RECORD_FORMAT
+    video_format: str = DEFAULT_VIDEO_FORMAT
     http_server_port: int = DEFAULT_HTTP_PORT
     target_folder: str = DEFAULT_TARGET_FOLDER
 
@@ -39,6 +42,7 @@ class RecorderConfig:
 
 
 CONFIG_FIELD_NAMES = {field.name for field in fields(RecorderConfig)}
+VIDEO_FORMAT_RE = re.compile(r"^[A-Za-z0-9_]+$")
 
 
 def load_config_yaml(path: str | Path) -> dict[str, Any]:
@@ -85,6 +89,13 @@ def validate_config(config: RecorderConfig, *, require_device: bool) -> None:
     if config.record_format not in VALID_RECORD_FORMATS:
         raise RecordStartupError(
             f"Invalid record format: {config.record_format!r}",
+            exit_code=RecordExitCode.CLI_USAGE_ERROR,
+        )
+
+    config.video_format = str(config.video_format)
+    if not VIDEO_FORMAT_RE.fullmatch(config.video_format):
+        raise RecordStartupError(
+            f"Invalid video format: {config.video_format!r}",
             exit_code=RecordExitCode.CLI_USAGE_ERROR,
         )
 

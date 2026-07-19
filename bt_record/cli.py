@@ -84,6 +84,7 @@ def parse_cli_args(args: Sequence[str] | None = None) -> CliOptions:
             "height": getattr(parsed, "height", None),
             "fps": getattr(parsed, "fps", None),
             "record_format": getattr(parsed, "record_format", None),
+            "video_format": getattr(parsed, "video_format", None),
             "http_server_port": getattr(parsed, "http_server_port", None),
             "target_folder": getattr(parsed, "target_folder", None),
         }.items()
@@ -120,5 +121,6 @@ def _add_config_command(
         choices=sorted(VALID_RECORD_FORMATS),
         help="Recording output format.",
     )
+    parser.add_argument("--video-format", help="Camera raw video format.")
     parser.add_argument("--http-server-port", type=int, help="HTTP server port.")
     parser.add_argument("--target-folder", help="Recording output folder.")

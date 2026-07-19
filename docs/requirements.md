@@ -127,6 +127,7 @@ Current CLI-level settings:
 | --height | camera height | 512 |
 | --fps | camera fps | 30 |
 | --record-format | how to save the file mp4, raw | default mp4 |
+| --video-format | camera raw video format | YUY2 |
 | --http-server-port | http server port | 8001 |
 | --target-folder | recording output folder | ./output |
 

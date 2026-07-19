@@ -64,28 +64,33 @@ Set the UDP stream destination IP and recording format from the command line.
 |---|---|
 | --stream-ip  | client ip to stream to (port 5600)  |
 | --record-format  | recording output format: mp4 or raw  |
+| --video-format  | camera raw video format, for example YUY2 or NV12  |
 
 
 ## usage
 
 ```
-uv run bt-gst-record
+uv run bt-gst-record run
 ```
 
 ```bash
 uv run bt-gst-record --stream-ip 10.0.0.17
 ```
 
-```bash
-uv run bt-gst-record --record-format mp4
-uv run bt-gst-record --record-format raw
-uv run bt-gst-record --stream-ip 10.0.0.17 --record-format raw
-```
 
 ### Web
 
 ![alt text](docs/images/web.png)
 
+
+###
+
+```
+gst-launch-1.0 v4l2src name=camera \
+            ! video/x-raw,format=YU12,width=640,height=512,framerate=30/1 \
+            ! videoconvert \
+            ! autovideosink
+```
 
 ### Receiver pipe
 ```

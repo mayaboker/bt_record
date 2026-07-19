@@ -18,6 +18,7 @@ from bt_record.constants import (
     CMD_STOP,
     DEFAULT_STREAM_IP,
     DEFAULT_STREAM_IP_PORT,
+    DEFAULT_VIDEO_FORMAT,
     VALID_RECORD_FORMATS,
 )
 from bt_record.errors import RecordExitCode, RecordStartupError
@@ -91,6 +92,7 @@ class CameraRecorder:
         height=512,
         fps=30,
         record_format="mp4",
+        video_format=DEFAULT_VIDEO_FORMAT,
         stream_ip=DEFAULT_STREAM_IP,
         stream_ip_port=DEFAULT_STREAM_IP_PORT,
     ):
@@ -100,6 +102,7 @@ class CameraRecorder:
             height = config.height
             fps = config.fps
             record_format = config.record_format
+            video_format = config.video_format
             stream_ip = config.stream_ip
             stream_ip_port = config.stream_ip_port
 
@@ -113,6 +116,7 @@ class CameraRecorder:
         self.height = height
         self.fps = fps
         self.record_format = record_format
+        self.video_format = video_format
         self.stream_ip = stream_ip
         self.stream_ip_port = stream_ip_port
         self.config = RecorderConfig(
@@ -123,6 +127,7 @@ class CameraRecorder:
             height=self.height,
             fps=self.fps,
             record_format=self.record_format,
+            video_format=self.video_format,
         )
         self.record_filename = None
         self.last_finalized_filename = None
@@ -370,6 +375,7 @@ class CameraRecorder:
             "recording": self.recording,
             "stopping": self.stopping,
             "format": self.record_format,
+            "video_format": self.video_format,
             "filename": self.record_filename,
             "last_finalized_filename": self.last_finalized_filename,
             "device": self.device,
@@ -419,6 +425,7 @@ class RecordingController:
         height=512,
         fps=30,
         record_format="mp4",
+        video_format=DEFAULT_VIDEO_FORMAT,
         target_folder="./output",
         stream_ip=DEFAULT_STREAM_IP,
         stream_ip_port=DEFAULT_STREAM_IP_PORT,
@@ -429,6 +436,7 @@ class RecordingController:
             height = config.height
             fps = config.fps
             record_format = config.record_format
+            video_format = config.video_format
             target_folder = config.target_folder
             stream_ip = config.stream_ip
             stream_ip_port = config.stream_ip_port
@@ -445,6 +453,7 @@ class RecordingController:
         self.height = height
         self.fps = fps
         self.record_format = record_format
+        self.video_format = video_format
         self.target_folder = Path(target_folder)
         self.stream_ip = stream_ip
         self.stream_ip_port = stream_ip_port
@@ -456,6 +465,7 @@ class RecordingController:
             height=self.height,
             fps=self.fps,
             record_format=self.record_format,
+            video_format=self.video_format,
             target_folder=str(self.target_folder),
         )
         self.recorder = None
@@ -551,6 +561,7 @@ class RecordingController:
                 "recording": False,
                 "stopping": False,
                 "format": self.record_format,
+                "video_format": self.video_format,
                 "filename": None,
                 "last_finalized_filename": None,
                 "device": self.device,
@@ -599,6 +610,7 @@ class RecordingController:
                 "recording": False,
                 "stopping": False,
                 "format": self.record_format,
+                "video_format": self.video_format,
                 "filename": None,
                 "last_finalized_filename": None,
                 "device": self.device,
